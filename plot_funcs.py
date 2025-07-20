@@ -48,8 +48,8 @@ def over_line(lambda_func, line, ylabel='', xlabel=''):
 
 
 def inputs_and_target(Supervisor: "SupervisorClass", Mesh: "MeshClass"):
-    plt.plot(Mesh.y_array, Supervisor.input_val_array, 'b', label='Input')
-    plt.plot(Mesh.y_array, Supervisor.target_val_array, 'r', label='Target')
+    plt.plot(Mesh.y_array, Supervisor.inputs.array, 'b', label='Input')
+    plt.plot(Mesh.y_array, Supervisor.target.array, 'r', label='Target')
     plt.title(r"Input and Target Iteration 1")
     plt.xlabel(r"$y$")
     plt.ylabel(r"Value")
@@ -79,28 +79,29 @@ def measurement_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh,
     # ax0.colorbar(label="Pressure")
 
     # Q
-    ax1.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.absQ.x.array, levels=100, cmap="plasma")
+    absQ = State.absQ.x.array
+    ax1.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], absQ, levels=100, cmap="plasma")
     ax1.set_title(r"$\|Q\|$ at iteration ${}$, cycle ${}$".format(iteration + 1, cycle + 1))
     ax1.set_xlabel(r"$x$")
     ax1.set_ylabel(r"$y$")
 
     # Q_x at right boundary
     ax2.plot(Mesh.coords_right[:, 1], State.Q_x_right, 'b', label='Q_x')
-    ax2.plot(Mesh.y_array, Supervisor.target_val_array, 'k', label='Target')
+    ax2.plot(Mesh.y_array, Supervisor.target.array, 'k', label='Target')
     ax2.plot(Mesh.coords_right[:, 1], Loss, 'r', label='Loss')
     ax2.set_xlabel(r"$y$")
     ax2.legend()
 
     if num == 1:
         # BADALINE for BCs
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_l, 'k', label='BADALINE left')
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_r, 'k--', label='BADALINE right')
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update.l_array, 'k', label='BADALINE left')
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update.r_array, 'k--', label='BADALINE right')
         ax3.set_xlabel(r"$y$")
         ax3.legend()
     elif num == 2:
         # BADALINE for BCs
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_l_2, 'k', label='BADALINE left')
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_r_2, 'k--', label='BADALINE right')
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_2.l_array, 'k', label='BADALINE left')
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_2.r_array, 'k--', label='BADALINE right')
         ax3.set_xlabel(r"$y$")
         ax3.legend()
 
@@ -124,7 +125,12 @@ def update_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh: "Mes
     ax0u.set_ylabel(r"$y$")
 
     # |Q|
-    ax1u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.absQ_update.x.array, levels=100, cmap="plasma")
+    if State.c_type == 'tensor':
+        absQ_update = State.absQ_update.x.array[:len(Mesh.coords[:, 0])] + State.absQ_update.x.array[-len(Mesh.coords[:, 0]):]
+    else:
+        absQ_update = State.absQ_update.x.array
+    ax1u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], absQ_update, levels=100, cmap="plasma")
+    # ax1u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.absQ_update.x.array, levels=100, cmap="plasma")
     ax1u.set_title(r"$\|Q^!\|$ at iteration ${}$, cycle ${}$".format(iteration + 1, cycle + 1))
     ax1u.set_xlabel(r"$x$")
     ax1u.set_ylabel(r"$y$")

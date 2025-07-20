@@ -50,26 +50,21 @@ def project_vector_func(func, Funcspace: "FuncspaceClass"):
     proj_func = proj_problem.solve()
     return proj_func
 
-# def smooth_scalar_field(field, Funcspace: "FuncspaceClass", alpha=0.01):
-#     """
-#     Helmholtz smoother for scalar fields.
 
-#     Inputs:
-#     field - dolfinx.fem.function.Function to smooth
-#     alpha - smoothing kernel, float
+def project_tensor_func(func, Funcspace: "FuncspaceClass"):
+    """
+    Project a vector UFL expression onto the vector function space.
+    """
+    U = TrialFunction(Funcspace.TensorFuncSpace)
+    V = TestFunction(Funcspace.TensorFuncSpace)
+    a_proj = form(inner(U, V) * dx)
+    L_proj = form(inner(func, V) * dx)
+    proj_func = Function(Funcspace.TensorFuncSpace)
+    # proj_problem = fem.petsc.LinearProblem(a_proj, L_proj, u=VectorFuncSpace)
+    proj_problem = dolfinx.fem.petsc.LinearProblem(a_proj, L_proj, u=proj_func)
+    proj_func = proj_problem.solve()
+    return proj_func
 
-#     Outputs:
-#     dolfinx.fem.function.Function smoothed function
-#     """
-#     Vh = field.function_space
-#     u = TrialFunction(Vh)
-#     v = TestFunction(Vh)
-    
-#     a = form(u * v * dx + alpha * dot(grad(Funcspace.u), grad(Funcspace.v)) * dx)
-#     L = form(field * v * dx)
-#     u_smooth = Function(Funcspace.ScalarFuncSpace)
-#     problem = dolfinx.fem.petsc.LinearProblem(a, L, u=u_smooth)
-#     return problem.solve()
 
 def smooth_field(field, Funcspace: "FuncspaceClass", alpha=0.01, space='vector'):
     """
@@ -86,13 +81,18 @@ def smooth_field(field, Funcspace: "FuncspaceClass", alpha=0.01, space='vector')
     u = TrialFunction(Vh)
     v = TestFunction(Vh)
 
-    a = form(dot(u, v) * dx + alpha * inner(grad(u), grad(v)) * dx)
-    L = form(dot(field, v) * dx)
-
-    if space=='vector':
+    if space == 'vector':
         u_smooth = Function(Funcspace.VectorFuncSpace)
+        a = form(dot(u, v) * dx + alpha * inner(grad(u), grad(v)) * dx)
+        L = form(dot(field, v) * dx)
+    elif space == 'tensor':
+        u_smooth = Function(Funcspace.TensorFuncSpace)
+        a = form(inner(u, v) * dx + alpha * inner(grad(u), grad(v)) * dx)
+        L = form(inner(field, v) * dx)
     else:
         u_smooth = Function(Funcspace.ScalarFuncSpace)
+        a = form(dot(u, v) * dx + alpha * inner(grad(u), grad(v)) * dx)
+        L = form(dot(field, v) * dx)
     problem = dolfinx.fem.petsc.LinearProblem(a, L, u=u_smooth)
     return problem.solve()
 

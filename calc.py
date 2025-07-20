@@ -4,7 +4,7 @@ import copy
 
 from ufl import TrialFunction, TestFunction
 from ufl import dot, grad, div, dx, inner
-from ufl import as_matrix, Identity
+from ufl import as_matrix, as_tensor, Identity
 from dolfinx.fem import form
 from dolfinx.fem import Function, dirichletbc, Constant
 from dolfinx.fem import functionspace, locate_dofs_geometrical
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # --- calculation functions ---
 
 
-def Poisson(left_bc, right_bc, c, Mesh, Funcspace: "FuncspaceClass"):
+def Poisson(inputs, outputs, c, Mesh, Funcspace: "FuncspaceClass"):
     """
     Solve the Poisson equation ∇·(c∇p) = 0 on a 2D domain with given boundary conditions.
 
@@ -33,26 +33,22 @@ def Poisson(left_bc, right_bc, c, Mesh, Funcspace: "FuncspaceClass"):
     Returns:
     - p_sol - dolfinx Function, the computed pressure field satisfying the Poisson equation
     """
-    u = TrialFunction(Funcspace.ScalarFuncSpace)
-    v = TestFunction(Funcspace.ScalarFuncSpace)
-
     # Weak form: a = (c * grad(u), grad(v)) * dx
-    # a = form(dot(c * grad(u), grad(v)) * dx)
-    c_tensor = c * Identity(2)
-    a = form(inner(dot(c_tensor, grad(u)), grad(v)) * dx)
-    L = form(Constant(Mesh.domain, 0.0) * v * dx)
+    # c_tensor = c * Identity(2)
+    if len(c.ufl_shape) == 2:  # c is tensor, use inner product
+        # a = form(inner(dot(c, grad(Funcspace.u)), grad(Funcspace.v)) * dx)
+        a = form(dot(dot(c, grad(Funcspace.u)), grad(Funcspace.v)) * dx)
+    else:  # c is scalar, use *
+        a = form(dot(c * grad(Funcspace.u), grad(Funcspace.v)) * dx)
+    L = form(Constant(Mesh.domain, 0.0) * Funcspace.v * dx)
 
     # Input BC (left)
-    inval_fn = Function(Funcspace.ScalarFuncSpace)
-    inval_fn.interpolate(left_bc)
-    left_dofs = locate_dofs_geometrical(Funcspace.ScalarFuncSpace, lambda x: np.isclose(x[0], Mesh.x_min))
-    bc_left = dirichletbc(inval_fn, left_dofs)
+    bc_left = dirichletbc(inputs, Mesh.left_dofs)
 
     # Output BC (right) – zero
-    outval_fn = Function(Funcspace.ScalarFuncSpace)
-    outval_fn.interpolate(right_bc)
-    right_dofs = locate_dofs_geometrical(Funcspace.ScalarFuncSpace, lambda x: np.isclose(x[0], Mesh.x_max))
-    bc_right = dirichletbc(outval_fn, right_dofs)
+    # outval_fn = Function(Funcspace.ScalarFuncSpace)
+    # outval_fn.interpolate(right_bc)
+    bc_right = dirichletbc(outputs, Mesh.right_dofs)
 
     # both bcs
     bcs = [bc_left, bc_right]
@@ -74,10 +70,11 @@ def Q(c, p, Funcspace):
     Returns:
     - Q: dolfinx function, flux vector field Q = -c∇p
     """
-    U = TrialFunction(Funcspace.VectorFuncSpace)
-    V = TestFunction(Funcspace.VectorFuncSpace)
-    a_proj = form(dot(U, V) * dx)
-    L_proj = form(-dot(grad(p) * c, V) * dx)
+    a_proj = form(dot(Funcspace.U, Funcspace.V) * dx)
+    if len(c.ufl_shape) == 2:  # c is tensor, use dot
+        L_proj = form(dot(dot(-grad(p), c), Funcspace.V) * dx)
+    else:  # c is scalar, use *
+        L_proj = form(-dot(grad(p) * c, Funcspace.V) * dx)
     Q = Function(Funcspace.VectorFuncSpace)
     problem = dolfinx.fem.petsc.LinearProblem(a_proj, L_proj, u=Q)
     Q = problem.solve()
@@ -88,10 +85,8 @@ def gradc(c, Funcspace):
     """
     Compute grad c
     """
-    U = TrialFunction(Funcspace.VectorFuncSpace)
-    V = TestFunction(Funcspace.VectorFuncSpace)
-    a_proj = form(dot(U, V) * dx)
-    L_proj = form(dot(grad(c), V) * dx)
+    a_proj = form(dot(Funcspace.U, Funcspace.V) * dx)
+    L_proj = form(dot(grad(c), Funcspace.V) * dx)
     grad_c = Function(Funcspace.VectorFuncSpace)
     problem = dolfinx.fem.petsc.LinearProblem(a_proj, L_proj, u=grad_c)
     grad_c = problem.solve()
@@ -108,12 +103,19 @@ def laplacianc(c, Funcspace):
     Returns:
     - laplacian_c - dolfinx function, laplacian of conductivity field
     """
-    u = TrialFunction(Funcspace.ScalarFuncSpace)
-    v = TestFunction(Funcspace.ScalarFuncSpace)
-    laplace_expr = div(grad(c))
-    a_proj = form(dot(u, v) * dx)
-    L_proj = form(dot(laplace_expr, v) * dx)
-    laplacian_c = Function(Funcspace.ScalarFuncSpace)
+    if len(c.ufl_shape) == 2:
+        # Compute component-wise Laplacian tensor
+        laplace_components = [[div(grad(c[i, j])) for j in range(2)] for i in range(2)]
+        laplace_expr = as_tensor(laplace_components)
+        # laplace_expr = div(grad(c[0, 0])) + div(grad(c[1, 1]))
+        a_proj = form(inner(Funcspace.U_tensor, Funcspace.V_tensor) * dx)
+        L_proj = form(inner(laplace_expr, Funcspace.V_tensor) * dx)
+        laplacian_c = Function(Funcspace.TensorFuncSpace)
+    else:
+        laplace_expr = div(grad(c))
+        a_proj = form(dot(Funcspace.u, Funcspace.v) * dx)
+        L_proj = form(dot(laplace_expr, Funcspace.v) * dx)
+        laplacian_c = Function(Funcspace.ScalarFuncSpace)
     problem = dolfinx.fem.petsc.LinearProblem(a_proj, L_proj, u=laplacian_c)
     laplacian_c = problem.solve()
     return laplacian_c
@@ -216,9 +218,7 @@ def Adalike_update(Loss, update_type, Mesh: "MeshClass", BCs=[0, 0]):
 
         # correct for wrong direction delta_p
         update_r[update_r > update_l] = update_l[update_r > update_l]
-    spline_l = funcs_proj_smooth.spline_over_coords(update_l, Mesh.coords_left)
-    spline_r = funcs_proj_smooth.spline_over_coords(update_r, Mesh.coords_right)
-    return update_l, update_r, spline_l, spline_r
+    return update_l, update_r
 
 
 def ceil_loss(Loss):

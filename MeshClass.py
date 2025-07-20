@@ -3,6 +3,11 @@ from mpi4py import MPI
 from dolfinx.fem import functionspace, locate_dofs_geometrical
 import numpy as np
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from MeshClass import MeshClass
+    from FuncspaceClass import FuncspaceClass
+
 # ===================================================
 # Class - dolfinx mesh variables
 # ===================================================
@@ -21,15 +26,13 @@ class MeshClass:
                                             [[x_min, y_min], [x_max, y_max]],
                                             [Ngrid, Ngrid],
                                             mesh.CellType.triangle)
-
-        self.coords = self.domain.geometry.x
-
+        
         self.L = x_max - x_min
         self.H = y_max - y_min
         self.Ngrid = Ngrid
 
     def build_dofs(self, Funcspace: "FuncspaceClass"):
-        # DOFs on the right boundary (x = x_max)
+        # DOFs on the left/right boundary (x = x_min/x_max)
         self.right_dofs = locate_dofs_geometrical(Funcspace.VectorFuncSpace, lambda x: np.isclose(x[0], self.x_max))
         self.left_dofs = locate_dofs_geometrical(Funcspace.VectorFuncSpace, lambda x: np.isclose(x[0], self.x_min))
         self.coords = Funcspace.VectorFuncSpace.tabulate_dof_coordinates()

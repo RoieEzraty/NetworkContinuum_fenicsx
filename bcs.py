@@ -3,7 +3,7 @@ import numpy as np
 # --- Input/output/target functions ---
 
 
-def input_val(y0_in, sigma_in, offset_in, coords):
+def input_val(y0_in, sigma_in, offset_in):
     """
     Return both line (1D) and spatial (2D) input functions centered at y0_in.
 
@@ -23,12 +23,10 @@ def input_val(y0_in, sigma_in, offset_in, coords):
         """Return 2d value input function."""
         return np.exp(-(y[1] - y0_in)**2 / sigma_in) + offset_in
 
-    input_val_array = np.array([input_val_1d(y) for y in coords[:, 1]])
-
-    return input_val_1d, input_val_2d, input_val_array
+    return input_val_1d, input_val_2d
 
 
-def output_val(coords):
+def output_val():
     """
     Return line (1D) output function as zeros.
 
@@ -46,17 +44,17 @@ def output_val(coords):
         """Return 2d value input function."""
         return np.zeros(y.shape[1])
 
-    output_val_array = np.array([output_val_1d(y) for y in coords[:, 1]])
-
-    return [output_val_1d, output_val_2d, output_val_array]
+    return output_val_1d, output_val_2d
 
 
-def target_val(y0_target, sigma_target, offset_target, coords):
+def target_val(y0_target, sigma_target, offset_target):
 
     def target_val_1d(y: np.ndarray) -> float:
         """Return 1d value target function."""
         return np.exp(-(y - y0_target)**2 / sigma_target) + offset_target
 
-    target_val_array = np.array([target_val_1d(y) for y in coords[:, 1]])
+    def target_val_2d(y: np.ndarray) -> float:
+        """Return 1d value target function."""
+        return np.exp(-(y[1] - y0_target)**2 / sigma_target) + offset_target
 
-    return target_val_1d, target_val_array
+    return target_val_1d, target_val_2d
