@@ -64,8 +64,9 @@ class StateClass:
             if smooth:
                 self.Q_update = funcs_proj_smooth.smooth_field(self.Q_update, Funcspace, space='vector')
             if self.c_type == 'tensor':
-                absQ_tensor_expr = as_tensor([[sqrt(self.Q_update[0] * self.Q_update[0]), sqrt(self.Q_update[0] * self.Q_update[1])],
-                                              [sqrt(self.Q_update[1] * self.Q_update[0]), sqrt(self.Q_update[1] * self.Q_update[1])]])
+                # absQ_tensor_expr = as_tensor([[sqrt(self.Q_update[0] * self.Q_update[0]), sqrt(self.Q_update[0] * self.Q_update[1])],
+                #                               [sqrt(self.Q_update[1] * self.Q_update[0]), sqrt(self.Q_update[1] * self.Q_update[1])]])
+                absQ_tensor_expr = outer(self.Q_update, self.Q_update)
                 self.absQ_update = funcs_proj_smooth.project_tensor_func(absQ_tensor_expr, Funcspace)
             else:
                 self.absQ_update = funcs_proj_smooth.project_scalar_func(sqrt(dot(self.Q_update, self.Q_update)), Funcspace)

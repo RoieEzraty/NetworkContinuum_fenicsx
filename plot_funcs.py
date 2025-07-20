@@ -126,26 +126,29 @@ def update_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh: "Mes
 
     # |Q|
     if State.c_type == 'tensor':
-        absQ_update = State.absQ_update.x.array[:len(Mesh.coords[:, 0])] + State.absQ_update.x.array[-len(Mesh.coords[:, 0]):]
+        # absQ_update = State.absQ_update.x.array[:len(Mesh.coords[:, 0])] + State.absQ_update.x.array[-len(Mesh.coords[:, 0]):]
+        absQ_update_array = State.absQ_update.x.array[::4] + State.absQ_update.x.array[3::4]
     else:
-        absQ_update = State.absQ_update.x.array
-    ax1u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], absQ_update, levels=100, cmap="plasma")
+        absQ_update_array = State.absQ_update.x.array
+    ax1u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], absQ_update_array, levels=100, cmap="plasma")
     # ax1u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.absQ_update.x.array, levels=100, cmap="plasma")
     ax1u.set_title(r"$\|Q^!\|$ at iteration ${}$, cycle ${}$".format(iteration + 1, cycle + 1))
     ax1u.set_xlabel(r"$x$")
     ax1u.set_ylabel(r"$y$")
 
     # c
-    ax2u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.c.x.array, levels=100, cmap="plasma")
+    if State.c_type == 'tensor':
+        c_array = State.c.x.array[::4] + State.c.x.array[3::4]
+    else:
+        c_array = State.absQ_update.x.array
+    ax2u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], c_array, levels=100, cmap="plasma")
     ax2u.set_title(r"$c$")
     ax2u.set_xlabel(r"$x$")
     ax2u.set_ylabel(r"$y$")
 
     # Update modality values
-    update_bc_fn_l = np.array([Supervisor.update_bc_fn_l([0.0, y]) for y in Mesh.y_array])
-    update_bc_fn_r = np.array([Supervisor.update_bc_fn_r([0.0, y]) for y in Mesh.y_array])
-    ax3u.plot(Mesh.coords_right[:, 1], update_bc_fn_l, 'k', label='BADALINE left')
-    ax3u.plot(Mesh.coords_right[:, 1], update_bc_fn_r, 'k--', label='BADALINE right')
+    ax3u.plot(Mesh.coords_left[:, 1], Supervisor.update.l_array, 'k', label='BADALINE left')
+    ax3u.plot(Mesh.coords_right[:, 1], Supervisor.update.r_array, 'k--', label='BADALINE right')
     ax3u.set_xlabel(r"$y$")
     ax3u.legend()
 

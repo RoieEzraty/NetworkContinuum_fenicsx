@@ -52,8 +52,15 @@ class SupervisorClass:
         elif num == 2:
             self.update_2 = Update(self.Loss_2, update_type, Mesh, self.inputs, self.outputs, Funcspace)
 
-            self.update.fn_l = funcs_proj_smooth.mean_funcs(self.update.l_fn, self.update_2.l_fn)
-            self.update.fn_r = funcs_proj_smooth.mean_funcs(self.update.r_fn, self.update_2.r_fn)
+    def combine_updates(self, Funcspace):
+        self.update.l_fn = funcs_proj_smooth.mean_funcs(self.update.l_fn, self.update_2.l_fn)
+        self.update.r_fn = funcs_proj_smooth.mean_funcs(self.update.r_fn, self.update_2.r_fn)
+        self.update.l_array = self.update.l_array + self.update_2.l_array
+        self.update.r_array = self.update.r_array + self.update_2.r_array
+        self.update.l_dolfx_1d = Function(Funcspace.ScalarFuncSpace)
+        self.update.l_dolfx_1d.interpolate(self.update.l_fn)
+        self.update.r_dolfx_1d = Function(Funcspace.ScalarFuncSpace)
+        self.update.r_dolfx_1d.interpolate(self.update.r_fn)
 
 
 class Inputs:
