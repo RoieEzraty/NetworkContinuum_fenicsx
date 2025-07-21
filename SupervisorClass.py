@@ -20,6 +20,9 @@ class SupervisorClass:
     Class of variables relevant to the supervisor, the one that operates the material
     """
     def __init__(self):
+        pass
+
+    def init_loss(self):
         self.Loss_vec = []
 
     def pose_input_val(self, y0, sigma, offset, Mesh: "MeshClass", Funcspace: "FuncspaceClass"):

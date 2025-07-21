@@ -37,7 +37,7 @@ def Poisson(inputs, outputs, c, Mesh, Funcspace: "FuncspaceClass"):
     # c_tensor = c * Identity(2)
     if len(c.ufl_shape) == 2:  # c is tensor, use inner product
         # a = form(inner(dot(c, grad(Funcspace.u)), grad(Funcspace.v)) * dx)
-        a = form(dot(dot(c, grad(Funcspace.u)), grad(Funcspace.v)) * dx)
+        a = form(inner(dot(c, grad(Funcspace.u)), grad(Funcspace.v)) * dx)
     else:  # c is scalar, use *
         a = form(dot(c * grad(Funcspace.u), grad(Funcspace.v)) * dx)
     L = form(Constant(Mesh.domain, 0.0) * Funcspace.v * dx)
@@ -218,6 +218,7 @@ def Adalike_update(Loss, update_type, Mesh: "MeshClass", BCs=[0, 0]):
 
         # correct for wrong direction delta_p
         update_r[update_r > update_l] = update_l[update_r > update_l]
+
     return update_l, update_r
 
 

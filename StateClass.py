@@ -25,7 +25,8 @@ class StateClass:
         self.gamma_decay = gamma_decay
         self.c_type = c_type
         if c_type == 'tensor':
-            self.c_ss = c_ss * Identity(2)
+            # self.c_ss = c_ss * Identity(2)
+            self.c_ss = c_ss * as_tensor([[0.01, 0.01], [0.01, 0.01]])
         else:
             self.c_ss = c_ss
 
@@ -45,6 +46,7 @@ class StateClass:
             self.c.interpolate(lambda x: np.full(x.shape[1], c0))
             if c_type == 'tensor':
                 self.c = self.c * Identity(2)
+                # self.c = as_tensor([[1.8*self.c, 1*self.c], [1*self.c, 1.8*self.c]])
 
     def calc_Poisson(self, Supervisor: "SupervisorClass", Mesh: "MeshClass", Funcspace: "FuncspaceClass", update=False):
         if not update:
@@ -66,10 +68,15 @@ class StateClass:
             if self.c_type == 'tensor':
                 # absQ_tensor_expr = as_tensor([[sqrt(self.Q_update[0] * self.Q_update[0]), sqrt(self.Q_update[0] * self.Q_update[1])],
                 #                               [sqrt(self.Q_update[1] * self.Q_update[0]), sqrt(self.Q_update[1] * self.Q_update[1])]])
-                absQ_tensor_expr = outer(self.Q_update, self.Q_update)
+                # absQ_tensor_expr = outer(self.Q_update, self.Q_update)
+                w = 1.0  # example: double the off-diagonal weight
+                absQ_tensor_expr = as_tensor([
+                    [1 / w * self.Q_update[0] * self.Q_update[0], w * self.Q_update[0] * self.Q_update[1]],
+                    [w * self.Q_update[1] * self.Q_update[0], 1 / w * self.Q_update[1] * self.Q_update[1]]
+                ])
                 self.absQ_update = funcs_proj_smooth.project_tensor_func(absQ_tensor_expr, Funcspace)
             else:
-                self.absQ_update = funcs_proj_smooth.project_scalar_func(sqrt(dot(self.Q_update, self.Q_update)), Funcspace)
+                self.absQ_update = funcs_proj_smooth.project_scalar_func(dot(self.Q_update, self.Q_update), Funcspace)
             self.Q_update_x_right = calc.Q_at_dofs(self.Q_update, Mesh.right_dofs)
 
     def evolve_c(self, Funcspace: "FuncspaceClass", smooth=True):
