@@ -24,13 +24,13 @@ class StateClass:
         self.gamma_c = gamma_c
         self.gamma_decay = gamma_decay
         self.c_type = c_type
-        if c_type == 'tensor':
-            # self.c_ss = c_ss * Identity(2)
-            self.c_ss = c_ss * as_tensor([[0.01, 0.01], [0.01, 0.01]])
+        if c_type == 'tensor' and isinstance(c_ss, (float, int)):
+            self.c_ss = c_ss * Identity(2)
+            # self.c_ss = c_ss * as_tensor([[0.01, 0.01], [0.01, 0.01]])
         else:
             self.c_ss = c_ss
 
-    def init_c(self, c0, c_type, Funcspace: "FuncspaceClass", upload_from_file=False):
+    def init_c(self, c0, c_type, Funcspace: "FuncspaceClass", upload_from_file=False, c=None):
         if upload_from_file:
             self.c = Function(Funcspace.ScalarFuncSpace)
             try:
@@ -41,12 +41,14 @@ class StateClass:
                 print("No previous c found. Starting fresh.")
                 self.c.interpolate(lambda x: np.full(x.shape[1], c0))
         else:
-            # Initialize conductivity field c
-            self.c = Function(Funcspace.ScalarFuncSpace)
-            self.c.interpolate(lambda x: np.full(x.shape[1], c0))
-            if c_type == 'tensor':
-                self.c = self.c * Identity(2)
-                # self.c = as_tensor([[1.8*self.c, 1*self.c], [1*self.c, 1.8*self.c]])
+            if c is not None:
+                self.c = c
+            else:
+                self.c = Function(Funcspace.ScalarFuncSpace)
+                self.c.interpolate(lambda x: np.full(x.shape[1], c0))
+                if c_type == 'tensor':
+                    self.c = self.c * Identity(2)
+                    # self.c = as_tensor([[1.8*self.c, 1*self.c], [1*self.c, 1.8*self.c]])
 
     def calc_Poisson(self, Supervisor: "SupervisorClass", Mesh: "MeshClass", Funcspace: "FuncspaceClass", update=False):
         if not update:
@@ -69,10 +71,11 @@ class StateClass:
                 # absQ_tensor_expr = as_tensor([[sqrt(self.Q_update[0] * self.Q_update[0]), sqrt(self.Q_update[0] * self.Q_update[1])],
                 #                               [sqrt(self.Q_update[1] * self.Q_update[0]), sqrt(self.Q_update[1] * self.Q_update[1])]])
                 # absQ_tensor_expr = outer(self.Q_update, self.Q_update)
-                w = 1.0  # example: double the off-diagonal weight
+                d = 0.1  # example: double the off-diagonal weight
+                ani = 0.5
                 absQ_tensor_expr = as_tensor([
-                    [1 / w * self.Q_update[0] * self.Q_update[0], w * self.Q_update[0] * self.Q_update[1]],
-                    [w * self.Q_update[1] * self.Q_update[0], 1 / w * self.Q_update[1] * self.Q_update[1]]
+                    [d * self.Q_update[0] * self.Q_update[0], ani * self.Q_update[0] * self.Q_update[1]],
+                    [ani * self.Q_update[1] * self.Q_update[0], d * self.Q_update[1] * self.Q_update[1]]
                 ])
                 self.absQ_update = funcs_proj_smooth.project_tensor_func(absQ_tensor_expr, Funcspace)
             else:
