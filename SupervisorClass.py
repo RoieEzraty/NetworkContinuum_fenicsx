@@ -51,7 +51,10 @@ class SupervisorClass:
 
     def calc_update(self, update_type, Mesh: "MeshClass", Funcspace: "FuncspaceClass", num=1):
         if num == 1:
-            self.update = Update(self.Loss, update_type, Mesh, self.inputs, self.outputs, Funcspace)
+            if update_type == 'dumb inputs':
+                self.update = Update(self.Loss, update_type, Mesh, self.inputs, self.target, Funcspace)
+            else:
+                self.update = Update(self.Loss, update_type, Mesh, self.inputs, self.outputs, Funcspace)
         elif num == 2:
             self.update_2 = Update(self.Loss_2, update_type, Mesh, self.inputs, self.outputs, Funcspace)
 
@@ -104,7 +107,7 @@ class Update:
     Class of variables relevant to the update modality values
     """
     def __init__(self, Loss, update_type, Mesh: "MeshClass", inputs, outputs, Funcspace: "FuncspaceClass"):
-        self.l_array, self.r_array = calc.Adalike_update(Loss, update_type, Mesh, [inputs.array, outputs.array])
+        self.l_array, self.r_array = calc.update(Loss, update_type, Mesh, [inputs.array, outputs.array])
         self.l_fn = funcs_proj_smooth.spline_over_coords(self.l_array, Mesh.coords_left)
         self.r_fn = funcs_proj_smooth.spline_over_coords(self.r_array, Mesh.coords_right)
         self.l_dolfx_1d = Function(Funcspace.ScalarFuncSpace)

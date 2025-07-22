@@ -164,9 +164,9 @@ def loss(Q, target, dofs, Funcspace: "FuncspaceClass"):
     return Q_x.x.array[dofs] - target
 
 
-def Adalike_update(Loss, update_type, Mesh: "MeshClass", BCs=[0, 0]):
+def update(Loss, update_type, Mesh: "MeshClass", BCs=[0, 0]):
     """
-    Compute Adalike update values (arrays and spline interpolations)
+    Compute update values (arrays and spline interpolations)
 
     Inputs:
     Loss           - np.array of loss at right coords
@@ -190,9 +190,24 @@ def Adalike_update(Loss, update_type, Mesh: "MeshClass", BCs=[0, 0]):
         Loss_ceil = ceil_loss(Loss)
         update_l = (BCs[1] - BCs[0]) * Loss
         update_r = - update_l
+    elif update_type == 'dumb inputs':
+        update_l = ceil_loss(Loss)*copy.copy(-BCs[0])
+        # update_r = ceil_loss(Loss)*copy.copy(BCs[1])
+
+        # update_l = copy.copy(BCs[0])
+        update_r = -copy.copy(BCs[1])*update_l
+
+        # update_l = update_l + np.mean(-Loss)
+        # update_r = update_r + np.mean(Loss)
+        
+        # correct for wrong direction delta_p
+        # update_r[update_r > update_l] = update_l[update_r > update_l]
+        # update_l[update_l > update_r] = update_r[update_l > update_r]
+
+        
     elif update_type == 'Loss integral':
-        bc_l = BCs[0]
-        bc_r = BCs[1]
+        bc_l = Loss*BCs[0]
+        bc_r = Loss*BCs[1]
         length = len(BCs[0])
         update_l = np.zeros(length)
         update_r = np.zeros(length)
