@@ -65,6 +65,18 @@ def project_tensor_func(func, Funcspace: "FuncspaceClass"):
     proj_func = proj_problem.solve()
     return proj_func
 
+    V_tensor = FunctionSpace(mesh, ("CG", 1, (2, 2)))  # Tensor space
+    Q = TrialFunction(V_tensor)
+    V = TestFunction(V_tensor)
+    
+    a = inner(Q, V) * dx
+    L = inner(custom_off_diag_tensor_expr(SpatialCoordinate(mesh)), V) * dx
+    
+    c_func = Function(V_tensor)
+    problem = dolfinx.fem.petsc.LinearProblem(a, L, u=c_func)
+    c_func = problem.solve()
+
+
 
 def smooth_field(field, Funcspace: "FuncspaceClass", alpha=0.01, space='vector'):
     """
