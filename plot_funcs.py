@@ -57,19 +57,28 @@ def inputs_and_target(Supervisor: "SupervisorClass", Mesh: "MeshClass"):
     plt.show()
 
 
-def measurement_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh, iteration=1, cycle=1, num=1):
+def measurement_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh, iteration=1, cycle=1, num=1, stack=False):
     if num == 1:
         Loss = Supervisor.Loss
     elif num == 2:
         Loss = Supervisor.Loss_2
 
     # instantiate figure during measurement and grid
-    fig_measure = plt.figure(figsize=(7, 7))
-    gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1], wspace=0.45)
-    ax0 = fig_measure.add_subplot(gs[0, 0])
-    ax1 = fig_measure.add_subplot(gs[0, 1])
-    ax2 = fig_measure.add_subplot(gs[1, 0])
-    ax3 = fig_measure.add_subplot(gs[1, 1])
+    singlefig = 3.5
+    if stack:
+        fig_measure = plt.figure(figsize=(2*singlefig, 2*singlefig))
+        gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1], wspace=0.45)
+        ax0 = fig_measure.add_subplot(gs[0, 0])
+        ax1 = fig_measure.add_subplot(gs[0, 1])
+        ax2 = fig_measure.add_subplot(gs[1, 0])
+        ax3 = fig_measure.add_subplot(gs[1, 1])
+    else:
+        fig_measure = plt.figure(figsize=(4*singlefig, singlefig))
+        gs = gridspec.GridSpec(1, 4, width_ratios=[1, 1, 1, 1], wspace=0.45)
+        ax0 = fig_measure.add_subplot(gs[0, 0])
+        ax1 = fig_measure.add_subplot(gs[0, 1])
+        ax2 = fig_measure.add_subplot(gs[0, 2])
+        ax3 = fig_measure.add_subplot(gs[0, 3])
 
     # p
     ax0.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.p.x.array, levels=100, cmap="cividis")
@@ -109,14 +118,24 @@ def measurement_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh,
     plt.show()
 
 
-def update_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh: "MeshClass", iteration=1, cycle=1):
+def update_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh: "MeshClass", iteration=1, cycle=1, stack=False):
+
     # instantiate figure during measurement and grid
-    fig_update = plt.figure(figsize=(7, 7))
-    gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1], wspace=0.45)
-    ax0u = fig_update.add_subplot(gs[0, 0])
-    ax1u = fig_update.add_subplot(gs[0, 1])
-    ax2u = fig_update.add_subplot(gs[1, 0])
-    ax3u = fig_update.add_subplot(gs[1, 1])
+    singlefig = 3.5
+    if stack:
+        fig_measure = plt.figure(figsize=(2*singlefig, 2*singlefig))
+        gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1], wspace=0.45)
+        ax0u = fig_measure.add_subplot(gs[0, 0])
+        ax1u = fig_measure.add_subplot(gs[0, 1])
+        ax2u = fig_measure.add_subplot(gs[1, 0])
+        ax3u = fig_measure.add_subplot(gs[1, 1])
+    else:
+        fig_measure = plt.figure(figsize=(4*singlefig, singlefig))
+        gs = gridspec.GridSpec(1, 4, width_ratios=[1, 1, 1, 1], wspace=0.45)
+        ax0u = fig_measure.add_subplot(gs[0, 0])
+        ax1u = fig_measure.add_subplot(gs[0, 1])
+        ax2u = fig_measure.add_subplot(gs[0, 2])
+        ax3u = fig_measure.add_subplot(gs[0, 3])
 
     # p_sol
     ax0u.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.p_update.x.array, levels=100, cmap="cividis")
