@@ -185,7 +185,7 @@ def Loss_vec(Supervisor: "SupervisorClass"):
     plt.show()
 
 
-def Q(State: "StateClass", Mesh: "MeshClass", update=False, iteration=1, cycle=1):
+def Q(State: "StateClass", Mesh: "MeshClass", update=False, iteration=1, cycle=1, include_p=False):
     """
     Plot each component of the 2x2 tensor c over the domain in 4 subplots.
     """
@@ -195,24 +195,40 @@ def Q(State: "StateClass", Mesh: "MeshClass", update=False, iteration=1, cycle=1
     else:
         Q = State.Q
 
-    fig = plt.figure(figsize=(7, 3.5))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1], wspace=0.45)
-    ax0u = fig.add_subplot(gs[0, 0])
-    ax1u = fig.add_subplot(gs[0, 1])
+    singlefig = 3.5
+
+    if include_p:
+        fig = plt.figure(figsize=(3*singlefig, singlefig))
+        gs = gridspec.GridSpec(1, 3, width_ratios=[1, 1, 1], wspace=0.45)
+        ax0u = fig.add_subplot(gs[0, 0])
+        ax1u = fig.add_subplot(gs[0, 1])
+        ax2u = fig.add_subplot(gs[0, 2])
+        axes = [ax0u, ax1u, ax2u]
+    else:
+        fig = plt.figure(figsize=(2*singlefig, singlefig))
+        gs = gridspec.GridSpec(1, 2, width_ratios=[1, 1], wspace=0.45)
+        ax0u = fig.add_subplot(gs[0, 0])
+        ax1u = fig.add_subplot(gs[0, 1])
+        axes = [ax0u, ax1u]
 
     global_min = min(Q.x.array)
     global_max = max(Q.x.array)
-
-    axes = [ax0u, ax1u]
+    
     labels = ['x', 'y']
 
     for i, ax in enumerate(axes):
-        tcf = ax.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], Q.x.array[i::2], levels=100, cmap="plasma", vmin=global_min, vmax=global_max)
-        ax.set_title(r"$Q_{{{}}}$ at iteration {}, cycle {}".format(labels[i], iteration + 1, cycle + 1))
-        ax.set_xlabel(r"$x$")
-        ax.set_ylabel(r"$y$")
-
-    fig.colorbar(tcf, ax=axes, orientation="vertical", fraction=0.02, pad=0.04)
+        if i<2:
+            tcf = ax.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], Q.x.array[i::2], levels=100, cmap="plasma", vmin=global_min, vmax=global_max)
+            ax.set_title(r"$Q_{{{}}}$ at iteration {}, cycle {}".format(labels[i], iteration + 1, cycle + 1))
+            ax.set_xlabel(r"$x$")
+            ax.set_ylabel(r"$y$")
+            # fig.colorbar(tcf, ax=axes, orientation="vertical", fraction=0.02, pad=0.04)
+            fig.colorbar(tcf, ax=ax, orientation="vertical", fraction=0.1, pad=0.02)
+        else:
+            tcf = ax.tricontourf(Mesh.coords[:, 0], Mesh.coords[:, 1], State.p.x.array, levels=100, cmap="plasma")
+            ax.set_title(r"$p$ at iteration {}, cycle {}".format(iteration + 1, cycle + 1))
+            ax.set_xlabel(r"$x$")
+            ax.set_ylabel(r"$y$")    
 
     plt.tight_layout()
     plt.show()
@@ -225,7 +241,7 @@ def c_tensor(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1):
     # Instantiate figure and subplots
     fig_update = plt.figure(figsize=(7, 7))
     gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1], wspace=0.45)
-    axes = [fig_update.add_subplot(gs[i, j]) for i in range(2) for j in range(2)]
+    axes = [fig_update.add_subplot(gs[j, i]) for i in range(2) for j in range(2)]
 
     # Extract tensor components
     c_components = [State.c.x.array[i::4] for i in range(4)]
@@ -237,7 +253,7 @@ def c_tensor(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1):
     # global_max = 2
 
     # Titles for each component
-    titles = [r"$c_{00}$", r"$c_{01}$", r"$c_{10}$", r"$c_{11}$"]
+    titles = [r"$c_{00}$", r"$c_{10}$", r"$c_{01}$", r"$c_{11}$"]
 
     # Plot all components with shared color scale
     for i, ax in enumerate(axes):
