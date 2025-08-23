@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.tri as mtri
 
+from dolfinx.plot import vtk_mesh
 from matplotlib import gridspec
 
 from typing import TYPE_CHECKING
@@ -269,6 +271,35 @@ def c_tensor(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1):
     fig_update.colorbar(tcf, ax=axes, orientation="vertical", fraction=0.02, pad=0.04, boundaries=[global_min, global_max])
 
     plt.tight_layout()
+    plt.show()
+
+
+def plot_mesh(Mesh):
+    """
+    """
+    tdim = Mesh.domain.topology.dim
+    topology, cell_types, geometry = vtk_mesh(Mesh.domain, tdim)
+    
+    # Each entry in cell_types corresponds to one cell
+    n_cells = len(cell_types)
+    triangles = []
+    
+    offset = 0
+    for ctype in cell_types:
+        nv = topology[offset]  # number of vertices for this cell
+        verts = topology[offset+1:offset+1+nv]
+        if ctype == 69 and nv == 3:   # VTK_TRIANGLE
+            triangles.append(verts)
+        offset += 1 + nv  # advance to next cell
+    
+    triangles = np.array(triangles, dtype=np.int32)
+    
+    # Triangulation for matplotlib
+    tri = mtri.Triangulation(geometry[:, 0], geometry[:, 1], triangles)
+    
+    plt.figure(figsize=(6, 12))
+    plt.triplot(tri, lw=0.2, color="black")
+    plt.gca().set_aspect("equal")
     plt.show()
 
 

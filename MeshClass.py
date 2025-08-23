@@ -10,7 +10,7 @@ class MeshClass:
     Class with mesh variables
     """
     def __init__(self, x_min, x_max, y_min, y_max, Ngrid, shape='full',
-                 nx_holes=4, ny_holes=4, hole_size=0.08, edge_pad=0.05, lc=None):
+                 nx_holes=0, ny_holes=0, hole_size=0.01, edge_pad=0.1, lc=None):
         self.x_min = x_min
         self.x_max = x_max
         self.y_min = y_min
@@ -76,25 +76,25 @@ class MeshClass:
         Ly = ymax - ymin
         if Lx <= 0 or Ly <= 0:
             raise ValueError("Domain must have positive size.")
-
+        
         free_x = Lx - 2*edge_pad - nx_holes*hole_size
         free_y = Ly - 2*edge_pad - ny_holes*hole_size
         if free_x < 0 or free_y < 0:
             raise ValueError("edge_pad + hole_size too large for the domain size")
-
+        
         gap_x = free_x / (nx_holes + 1)
         gap_y = free_y / (ny_holes + 1)
-
+        
         comm = MPI.COMM_WORLD
         rank = comm.rank
-
+        
         if rank == 0:
             gmsh.initialize()
             gmsh.model.add("perforated_rect")
-
+        
             # Outer rectangle
             outer = gmsh.model.occ.addRectangle(xmin, ymin, 0.0, Lx, Ly)
-
+        
             # Holes
             holes = []
             for i in range(nx_holes):
@@ -103,7 +103,7 @@ class MeshClass:
                     y0 = ymin + edge_pad + gap_y*(j+1) + hole_size*j
                     r = gmsh.model.occ.addRectangle(x0, y0, 0.0, hole_size, hole_size)
                     holes.append(r)
-
+        
             gmsh.model.occ.synchronize()
             if holes:
                 cut = gmsh.model.occ.cut([(2, outer)], [(2, h) for h in holes])
@@ -112,7 +112,7 @@ class MeshClass:
                 domain = (2, surfaces[0])
             else:
                 domain = (2, outer)
-
+        
             # Tag boundaries
             gmsh.model.occ.synchronize()
             
@@ -120,8 +120,10 @@ class MeshClass:
             gmsh.model.occ.synchronize()
             
             # Get curve loops for the new domain surface
-            loops = gmsh.model.getBoundary([domain], oriented=False, recursive=False)
-            curve_loops = gmsh.model.getCurveLoops([l for l in loops if l[0] == 1])
+            surf_tag = domain[1]  # the surface id from the cut
+            curve_loops = gmsh.model.occ.getCurveLoops(surf_tag)
+            # curve_loops = (loop_tags, [list_of_curves_per_loop])
+        
             # curve_loops = (loop_tags, [list_of_curves_per_loop])
             
             outer_curve_tags = curve_loops[1][0]                    # first loop = outer
@@ -134,20 +136,20 @@ class MeshClass:
             if hole_curve_tags:
                 pg_holes = gmsh.model.addPhysicalGroup(1, hole_curve_tags, tag=2)
                 gmsh.model.setPhysicalName(1, pg_holes, "holes")
-
-
+        
+        
             if lc is not None:
                 gmsh.option.setNumber("Mesh.CharacteristicLengthMin", lc)
                 gmsh.option.setNumber("Mesh.CharacteristicLengthMax", lc)
-
+        
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(2)
-
+        
         # Build distributed dolfinx mesh from rank 0's model
         msh, cell_tags, facet_tags = gmshio.model_to_mesh(
             gmsh.model if rank == 0 else None, comm, 0, gdim=2
         )
-
+        
         if rank == 0:
             gmsh.finalize()
 
