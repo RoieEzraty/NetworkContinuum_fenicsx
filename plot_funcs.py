@@ -102,15 +102,15 @@ def measurement_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh,
     ax2.legend()
 
     if num == 1:
-        # BADALINE for BCs
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update.l_array, 'k', label='BADALINE left')
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update.r_array, 'k--', label='BADALINE right')
+        # BEASTAL for BCs
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update.l_array, 'k', label='BEASTAL left')
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update.r_array, 'k--', label='BEASTAL right')
         ax3.set_xlabel(r"$y$")
         ax3.legend()
     elif num == 2:
-        # BADALINE for BCs
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_2.l_array, 'k', label='BADALINE left')
-        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_2.r_array, 'k--', label='BADALINE right')
+        # BEASTAL for BCs
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_2.l_array, 'k', label='BEASTAL left')
+        ax3.plot(Mesh.coords_right[:, 1], Supervisor.update_2.r_array, 'k--', label='BEASTAL right')
         ax3.set_xlabel(r"$y$")
         ax3.legend()
 
@@ -166,8 +166,8 @@ def update_fields(State: "StateClass", Supervisor: "SupervisorClass", Mesh: "Mes
     ax2u.set_ylabel(r"$y$")
 
     # Update modality values
-    ax3u.plot(Mesh.coords_left[:, 1], Supervisor.update.l_array, 'k', label='BADALINE left')
-    ax3u.plot(Mesh.coords_right[:, 1], Supervisor.update.r_array, 'k--', label='BADALINE right')
+    ax3u.plot(Mesh.coords_left[:, 1], Supervisor.update.l_array, 'k', label='BEASTAL left')
+    ax3u.plot(Mesh.coords_right[:, 1], Supervisor.update.r_array, 'k--', label='BEASTAL right')
     ax3u.set_xlabel(r"$y$")
     ax3u.legend()
 
