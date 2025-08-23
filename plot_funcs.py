@@ -276,30 +276,66 @@ def c_tensor(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1):
 
 def plot_mesh(Mesh):
     """
+    Plot a dolfinx 2D mesh using matplotlib's Triangulation.
+
+    Parameters
+    ----------
+    Mesh : MeshClass
+        An object with attribute `.domain` being a dolfinx Mesh.
     """
-    tdim = Mesh.domain.topology.dim
-    topology, cell_types, geometry = vtk_mesh(Mesh.domain, tdim)
-    
-    # Each entry in cell_types corresponds to one cell
-    n_cells = len(cell_types)
-    triangles = []
-    
-    offset = 0
-    for ctype in cell_types:
-        nv = topology[offset]  # number of vertices for this cell
-        verts = topology[offset+1:offset+1+nv]
-        if ctype == 69 and nv == 3:   # VTK_TRIANGLE
-            triangles.append(verts)
-        offset += 1 + nv  # advance to next cell
-    
-    triangles = np.array(triangles, dtype=np.int32)
-    
-    # Triangulation for matplotlib
-    tri = mtri.Triangulation(geometry[:, 0], geometry[:, 1], triangles)
-    
+    def triangulation_from_connectivity(dmesh):
+        """
+        Convert a dolfinx mesh into (x, y, triangles) arrays suitable for
+        matplotlib.tri.Triangulation.
+
+        Steps:
+        - Access mesh topology (cell → vertex connectivity).
+        - Loop over cells and build triangles (splitting quads/polygons if needed).
+        - Collect node coordinates.
+        """
+        tdim = dmesh.topology.dim
+        assert tdim == 2, f"Need 2D mesh, got {tdim}"
+
+        # Build connectivity: cells (tdim) → vertices (dim 0)
+        dmesh.topology.create_connectivity(tdim, 0)
+        conn = dmesh.topology.connectivity(tdim, 0)
+        idx, off = conn.array, conn.offsets  # CSR-like storage
+
+        tris = []
+        for i in range(len(off) - 1):
+            # Vertex indices of cell i
+            verts = idx[off[i]:off[i+1]]
+            nv = len(verts)
+
+            if nv == 3:
+                # Already a triangle
+                tris.append(verts)
+            elif nv == 4:
+                # Split quad into 2 triangles (0-1-2 and 0-2-3)
+                tris.append([verts[0], verts[1], verts[2]])
+                tris.append([verts[0], verts[2], verts[3]])
+            elif nv > 4:
+                # Generic fan triangulation for polygons with >4 vertices
+                for k in range(1, nv - 1):
+                    tris.append([verts[0], verts[k], verts[k+1]])
+
+        tris = np.asarray(tris, dtype=np.int32)
+
+        # Mesh node coordinates (geometry)
+        X = dmesh.geometry.x
+        return X[:, 0], X[:, 1], tris
+
+    # Extract coordinates and triangle connectivity
+    x, y, triangles = triangulation_from_connectivity(Mesh.domain)
+
+    # Build matplotlib triangulation object
+    tri = mtri.Triangulation(x, y, triangles)
+
+    # Plot
     plt.figure(figsize=(6, 12))
-    plt.triplot(tri, lw=0.2, color="black")
-    plt.gca().set_aspect("equal")
+    plt.triplot(tri, lw=0.3)       # edges only (wireframe)
+    plt.gca().set_aspect('equal')  # square aspect ratio
+    plt.title("Cell mesh")
     plt.show()
 
 

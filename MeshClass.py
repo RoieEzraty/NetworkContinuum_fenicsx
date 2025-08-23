@@ -10,7 +10,7 @@ class MeshClass:
     Class with mesh variables
     """
     def __init__(self, x_min, x_max, y_min, y_max, Ngrid, shape='full',
-                 nx_holes=0, ny_holes=0, hole_size=0.01, edge_pad=0.1, lc=None):
+                 nx_holes=1, ny_holes=1, hole_size=0.01, edge_pad=0.1, lc=None):
         self.x_min = x_min
         self.x_max = x_max
         self.y_min = y_min
@@ -116,14 +116,13 @@ class MeshClass:
             # Tag boundaries
             gmsh.model.occ.synchronize()
             
-            # After cut and synchronize
-            gmsh.model.occ.synchronize()
+            # Tag the 2D domain (cells) so gmshio exports a 2D mesh
+            pg_domain = gmsh.model.addPhysicalGroup(2, [domain[1]], tag=100)
+            gmsh.model.setPhysicalName(2, pg_domain, "domain")            
             
             # Get curve loops for the new domain surface
             surf_tag = domain[1]  # the surface id from the cut
             curve_loops = gmsh.model.occ.getCurveLoops(surf_tag)
-            # curve_loops = (loop_tags, [list_of_curves_per_loop])
-        
             # curve_loops = (loop_tags, [list_of_curves_per_loop])
             
             outer_curve_tags = curve_loops[1][0]                    # first loop = outer
@@ -136,8 +135,7 @@ class MeshClass:
             if hole_curve_tags:
                 pg_holes = gmsh.model.addPhysicalGroup(1, hole_curve_tags, tag=2)
                 gmsh.model.setPhysicalName(1, pg_holes, "holes")
-        
-        
+
             if lc is not None:
                 gmsh.option.setNumber("Mesh.CharacteristicLengthMin", lc)
                 gmsh.option.setNumber("Mesh.CharacteristicLengthMax", lc)
