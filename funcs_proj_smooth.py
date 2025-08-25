@@ -78,7 +78,6 @@ def project_tensor_func(func, Funcspace: "FuncspaceClass"):
     c_func = problem.solve()
 
 
-
 def smooth_field(field, Funcspace: "FuncspaceClass", alpha=0.01, space='vector'):
     """
     Helmholtz smoother:  (I – α∇²) ũ  =  u   ⇒
