@@ -1,5 +1,6 @@
 import dolfinx.fem.petsc
 import numpy as np
+import matplotlib.pyplot as plt
 
 from scipy.interpolate import make_interp_spline
 from ufl import TrialFunction, TestFunction
@@ -123,7 +124,29 @@ def spline_over_coords(arr, coords):
     # Build a spline model over y-values
     spline_y = coords[:, 1]
     spline_vals = arr
-    spline_model = make_interp_spline(spline_y, spline_vals, k=3)  # cubic spline
+
+    # New by GPT 24Aug2025
+    # sort by y
+    order = np.argsort(spline_y)
+    spline_y, spline_vals = spline_y[order], spline_vals[order]
+
+    # plt.plot(spline_y, spline_vals)
+    # plt.show()
+
+    # collapse duplicates (average values with same y)
+    spline_y_unique, start_idx = np.unique(spline_y, return_index=True)
+    # counts per unique y
+    counts = np.diff(np.append(start_idx, len(spline_y)))
+    # averaged values at unique y
+    spline_vals_unique = np.add.reduceat(spline_vals, start_idx) / counts
+
+    # 3) pick a safe spline order
+    k_eff = min(3, max(1, len(spline_y_unique) - 1))
+    if len(spline_y_unique) < 2:
+        raise ValueError("Need at least 2 unique y-points for interpolation.")
+
+    spline_model = make_interp_spline(spline_y_unique, spline_vals_unique, k=3)  # cubic spline
+    # spline_model = make_interp_spline(spline_y, spline_vals, k=3)  # cubic spline
     # Create callable boundary condition for interpolation
     # adalike_bc_fn = lambda x: spline_model(x[1])
 
@@ -131,6 +154,7 @@ def spline_over_coords(arr, coords):
         """Return interpolated value from spline model."""
         return spline_model(y[1])
 
+    # plt.plot(spline_y_unique, spline_model(spline_y_unique))
     # adalike_bc_fn = lambda y: spline_model(y)
     return spline_fn
 

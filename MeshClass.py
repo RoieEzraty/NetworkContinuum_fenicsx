@@ -10,7 +10,7 @@ class MeshClass:
     Class with mesh variables
     """
     def __init__(self, x_min, x_max, y_min, y_max, Ngrid, shape='full',
-                 nx_holes=1, ny_holes=1, hole_size=0.01, edge_pad=0.1, lc=None):
+                 nx_holes=1, ny_holes=1, hole_size=0.01, edge_pad=0.1):
         self.x_min = x_min
         self.x_max = x_max
         self.y_min = y_min
@@ -33,11 +33,9 @@ class MeshClass:
                 mesh.CellType.triangle
             )
         elif shape == 'grid':
-            self.domain, self.cell_tags, self.facet_tags = self.rect_w_square_holes(
-                x_min, x_max, y_min, y_max,
-                nx_holes=nx_holes, ny_holes=ny_holes,
-                hole_size=hole_size, edge_pad=edge_pad, lc=lc
-            )
+            self.domain, self.cell_tags, self.facet_tags = self.rect_w_square_holes(x_min, x_max, y_min, y_max,
+                                                                                    nx_holes, ny_holes, hole_size, 
+                                                                                    edge_pad, Ngrid)
         else:
             raise ValueError("shape must be 'full' or 'grid'")
 
@@ -61,13 +59,8 @@ class MeshClass:
             self.outer_facets = self.facet_tags.find(1)  # outer boundary
             self.hole_facets  = self.facet_tags.find(2)  # hole walls
 
-    def rect_w_square_holes(
-        self, xmin, xmax, ymin, ymax,
-        nx_holes=4, ny_holes=4,
-        hole_size=0.08,
-        edge_pad=0.05,
-        lc=None,
-    ):
+    def rect_w_square_holes(self, xmin, xmax, ymin, ymax, nx_holes, ny_holes,
+                            hole_size, edge_pad, Ngrid=None):
         """
         Build [xmin,xmax]×[ymin,ymax] with an nx×ny grid of square holes.
         Returns (msh, cell_tags, facet_tags). facet_tags: 1=outer, 2=holes.
@@ -136,9 +129,9 @@ class MeshClass:
                 pg_holes = gmsh.model.addPhysicalGroup(1, hole_curve_tags, tag=2)
                 gmsh.model.setPhysicalName(1, pg_holes, "holes")
 
-            if lc is not None:
-                gmsh.option.setNumber("Mesh.CharacteristicLengthMin", lc)
-                gmsh.option.setNumber("Mesh.CharacteristicLengthMax", lc)
+            lc = 8/Ngrid
+            gmsh.option.setNumber("Mesh.CharacteristicLengthMin", lc)
+            gmsh.option.setNumber("Mesh.CharacteristicLengthMax", lc)
         
             gmsh.model.occ.synchronize()
             gmsh.model.mesh.generate(2)
