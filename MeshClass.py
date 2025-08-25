@@ -1,8 +1,12 @@
 from dolfinx import mesh
-from mpi4py import MPI
 from dolfinx.fem import locate_dofs_geometrical
 from dolfinx.io import gmshio
+from dolfinx.plot import vtk_mesh
+from mpi4py import MPI
+
 import numpy as np
+import matplotlib.tri as mtri
+import pyvista as pv
 import gmsh
 
 class MeshClass:
@@ -16,7 +20,6 @@ class MeshClass:
         self.y_min = y_min
         self.y_max = y_max
         self.shape = shape
-
         self.L = x_max - x_min
         self.H = y_max - y_min
         self.Ngrid = Ngrid
@@ -39,6 +42,8 @@ class MeshClass:
         else:
             raise ValueError("shape must be 'full' or 'grid'")
 
+        self.tri = self.triangulation()  # grid triangulation for elaborate grid
+
     def build_dofs(self, Funcspace: "FuncspaceClass"):
         # DOFs on the left/right boundary (x = x_min/x_max)
         self.right_dofs = locate_dofs_geometrical(
@@ -58,6 +63,27 @@ class MeshClass:
             # store facet sets on the instance for later BC use
             self.outer_facets = self.facet_tags.find(1)  # outer boundary
             self.hole_facets  = self.facet_tags.find(2)  # hole walls
+
+    def triangulation(self):
+        tdim = self.domain.topology.dim
+        self.domain.topology.create_connectivity(tdim, 0)
+        conn = self.domain.topology.connectivity(tdim, 0)
+        idx, off = conn.array, conn.offsets
+        tris = []
+        for i in range(len(off)-1):
+            v = idx[off[i]:off[i+1]]
+            if len(v)==3: tris.append(v)
+            elif len(v)==4: tris += [[v[0],v[1],v[2]], [v[0],v[2],v[3]]]
+            else: tris += [[v[0], v[k], v[k+1]] for k in range(1,len(v)-1)]
+        X = self.domain.geometry.x
+        self._tri = mtri.Triangulation(X[:,0], X[:,1], np.asarray(tris, np.int32))
+        return self._tri
+
+    def pv_grid(self):
+        tdim = self.domain.topology.dim
+        cells, cell_types, points = vtk_mesh(self.domain, tdim)
+        self._pv_grid = pv.UnstructuredGrid(cells, cell_types, points)
+        return self._pv_grid
 
     def rect_w_square_holes(self, xmin, xmax, ymin, ymax, nx_holes, ny_holes,
                             hole_size, edge_pad, Ngrid=None):
