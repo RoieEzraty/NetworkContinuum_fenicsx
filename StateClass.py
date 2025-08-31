@@ -72,7 +72,8 @@ class StateClass:
                 #                               [sqrt(self.Q_update[1] * self.Q_update[0]), sqrt(self.Q_update[1] * self.Q_update[1])]])
                 # absQ_tensor_expr = outer(self.Q_update, self.Q_update)
                 d = 1.0  # example: double the off-diagonal weight
-                ani = 3.76
+                # ani = 3.76
+                ani = 1.0
                 # ani = 0.0
                 absQ_tensor_expr = as_tensor([
                     [d * self.Q_update[0] * self.Q_update[0], -ani * self.Q_update[0] * self.Q_update[1]],

@@ -59,7 +59,7 @@ def inputs_and_target(Supervisor: "SupervisorClass", Mesh: "MeshClass"):
     plt.legend()
     plt.show()
 
-def measurement_fields(Mesh: "MeshClass", State: "StateClass", Supervisor: "SupervisorClass", iteration=1, cycle=1, num=1, stack=False):
+def measurement_fields(Mesh: "MeshClass", State: "StateClass", Supervisor: "SupervisorClass", iteration=1, cycle=1, num=1):
     """
     4 panels:
       [0] scalar field p (cividis)
@@ -76,61 +76,36 @@ def measurement_fields(Mesh: "MeshClass", State: "StateClass", Supervisor: "Supe
     font = 16
 
     # choose layout
-    shape = (2, 2) if stack else (1, 4)
-    pl = pv.Plotter(shape=shape, window_size=(length, height if not stack else length), border=False)
+    shape = (1, 4)
+    pl = pv.Plotter(shape=shape, window_size=(length, height), border=False)
     grid = Mesh.pv_grid().copy() # build once
 
-    sbar0 = dict(title="p", vertical=True,    # vertical orientation
-                 position_x=Mesh.x_max+0.15,  # move rightward
-                 position_y=0.05,   # lower edge
-                 width=0.08,
-                 height=0.9)
+    sbar_common = dict(vertical=True, position_x=0.88, position_y=0.05, width=0.08, height=0.9) 
 
-    sbar1 = dict(title="|Q|", vertical=True,    # vertical orientation
-                 position_x=Mesh.x_max+0.15,  # move rightward
-                 position_y=0.05,   # lower edge
-                 width=0.08,
-                 height=0.9)   
-    
-    # ---------- panel 0: p ----------
-    
-    grid_p = grid.copy()
-    grid_p.point_data["p"] = State.p.x.array
+    # ---------- panel 1: input ----------
+
     pl.subplot(0, 0)
-    pl.add_mesh(grid_p, scalars="p", cmap="plasma",
-                show_edges=False, lighting=False, scalar_bar_args=sbar0, show_scalar_bar=True)
-    outline = _domain_outline_polyline(Mesh)
-    pl.add_mesh(outline, color="black", line_width=3.0)
+    # pl.add_text(f"measure \niteration {iteration+1}\n cycle {cycle+1}", font_size=10) 
+    # pl.add_title(f"measure – iteration {iteration+1}, cycle {cycle+1}", font_size=16)
+    # This goes on the entire figure, top center
+    pl.add_text(
+        f"measure – iteration {iteration+1}, cycle {cycle+1}",
+        position=(0.5, 0.98),   # normalized: x=0.5 is center, y≈1.0 is top
+        font_size=16,
+        name="global_title",
+        viewport=True           # <-- key: anchor to window, not subplot
+    )
 
-    pl.view_xy()
-    pl.hide_axes()   # hide axes indicator
-    pl.camera.zoom(zoom)   # ← same zoom
-    pl.add_text(f"measure \niteration {iteration+1}\n cycle {cycle+1}", font_size=10, position="upper_left") 
-
-    # ---------- panel 1: |Q| ----------
-    grid_q = grid.copy()
-    grid_q.point_data["absQ"] = State.absQ.x.array
-    pl.subplot(0, 1)
-    pl.add_mesh(grid_q, scalars="absQ", cmap="plasma",
-                show_edges=False, lighting=False, scalar_bar_args=sbar1, show_scalar_bar=True)
-    outline = _domain_outline_polyline(Mesh)
-    pl.add_mesh(outline, color="black", line_width=linewidth)
-    pl.view_xy()
-    pl.hide_axes()   # hide axes indicator
-    pl.camera.zoom(zoom)   # ← same zoom
-    
-    # ---------- panel 2: input ----------
 
     # data
     y_l = Mesh.coords_left[:, 1]
     input_l = Supervisor.inputs.array
     
-    if stack:
-        pl.subplot(1, 0)
-    else:
-        pl.subplot(0, 2)
     ch = pv.Chart2D()
     ch.line(input_l, y_l, color="black", width=linewidth, label="input_x")
+    # Flip the x-axis direction for visual effect
+    xmin, xmax = input_l.min(), input_l.max()
+    ch.x_axis.range = (xmax, xmin)   # reversed order → inverts axis
     ch.y_label = "y"
     ch.x_label = ""
     ch.x_axis.tick_label_size = font
@@ -139,8 +114,37 @@ def measurement_fields(Mesh: "MeshClass", State: "StateClass", Supervisor: "Supe
     ch.y_axis.label_size = font
     ch.legend_visible = True
     ch.grid = False
+    
     pl.add_chart(ch)
+    
+    # ---------- panel 1: p ----------
+    grid = Mesh.pv_grid().copy() # build once
+    grid_p = grid.copy()
+    grid_p.point_data["p"] = State.p.x.array
+    pl.subplot(0, 1)
+    sbar0 = {**sbar_common, "title": "p"}
+    pl.add_mesh(grid_p, scalars="p", cmap="plasma",
+                show_edges=False, lighting=False, scalar_bar_args=sbar0, show_scalar_bar=True)
+    outline = _domain_outline_polyline(Mesh)
+    pl.add_mesh(outline, color="black", line_width=3.0)
 
+    pl.view_xy()
+    pl.hide_axes()   # hide axes indicator
+    pl.camera.zoom(zoom)   # ← same zoom
+
+    # ---------- panel 2: |Q| ----------
+    grid_q = grid.copy()
+    grid_q.point_data["absQ"] = State.absQ.x.array
+    pl.subplot(0, 2)
+    sbar1 = {**sbar_common, "title": "|Q|"}
+    pl.add_mesh(grid_q, scalars="absQ", cmap="plasma",
+                show_edges=False, lighting=False, scalar_bar_args=sbar1, show_scalar_bar=True)
+    outline = _domain_outline_polyline(Mesh)
+    pl.add_mesh(outline, color="black", line_width=linewidth)
+    pl.view_xy()
+    pl.hide_axes()   # hide axes indicator
+    pl.camera.zoom(zoom)   # ← same zoom
+    
     # ---------- panel 3: right-boundary lines ----------
     # data
     y_r = Mesh.coords_right[:, 1]
@@ -149,10 +153,7 @@ def measurement_fields(Mesh: "MeshClass", State: "StateClass", Supervisor: "Supe
     Loss  = Supervisor.Loss if num == 1 else Supervisor.Loss_2
 
     # chart
-    if stack:
-        pl.subplot(1, 1)
-    else:
-        pl.subplot(0, 3)
+    pl.subplot(0, 3)
     ch = pv.Chart2D()
     ch.line(Qx_r, y_r, color="black", width=linewidth, label="Q_x")
     ch.line(target, Mesh.y_array, color="blue", width=linewidth, label="Target")
@@ -168,13 +169,13 @@ def measurement_fields(Mesh: "MeshClass", State: "StateClass", Supervisor: "Supe
     pl.add_chart(ch)
 
     # axes + show
-    for rc in [(0,1),(1,0)] if stack else [(0,1),(0,2)]:
+    for rc in [(0,1),(0,2)]:
         pl.subplot(*rc); pl.show_axes()
-    pl.link_views()  # link camera across subplots with meshes
+    # pl.link_views()  # link camera across subplots with meshes
     pl.show()
 
 
-def update_fields(Mesh, State, Supervisor, iteration=1, cycle=1, stack=False):
+def update_fields(Mesh, State, Supervisor, iteration=1, cycle=1):
     """
     4 panels:
       [0] scalar field p_update (cividis)
@@ -189,18 +190,37 @@ def update_fields(Mesh, State, Supervisor, iteration=1, cycle=1, stack=False):
     zoom = 1.5
     font = 16
 
-    shape = (2, 2) if stack else (1, 4)
-    pl = pv.Plotter(shape=shape, window_size=(length, height if not stack else length), border=False)
-
+    shape = (1, 4)
+    pl = pv.Plotter(shape=shape, window_size=(length, height), border=False)
+    # pl = pv.Plotter(window_size=(length, height), border=False)
+    
     # build once, reuse via copies
     grid_base = Mesh.pv_grid().copy()
     outline = _domain_outline_polyline(Mesh)
 
     # vertical scalar bars (screen coords 0..1)
-    sbar_common = dict(vertical=True, position_x=Mesh.x_max+0.15, position_y=0.05, width=0.08, height=0.9)
+    sbar_common = dict(vertical=True, position_x=0.88, position_y=0.05, width=0.08, height=0.9)
     
-    # ---------- panel 0: p_update ----------
+    # ---------- panel 0: BEASTAL Left ----------
     pl.subplot(0, 0)
+    # pl.add_text(f"update \niteration {iteration+1}\ncycle {cycle+1}", font_size=10, position="upper_left")
+
+    y_r = Mesh.coords_right[:, 1]
+    ch = pv.Chart2D()
+    ch.line(Supervisor.update.l_array, y_r, color="black", width=linewidth, label="BEASTAL left")
+    # Flip the x-axis direction for visual effect
+    xmin, xmax = Supervisor.update.l_array.min(), Supervisor.update.l_array.max()
+    ch.x_axis.range = (xmax, xmin)   # reversed order → inverts axis
+    ch.y_label = "y"
+    ch.x_label = ""
+    ch.x_axis.tick_label_size = font; ch.x_axis.label_size = font
+    ch.y_axis.tick_label_size = font; ch.y_axis.label_size = font
+    ch.legend_visible = True
+    ch.grid = False
+    pl.add_chart(ch)   
+
+    # ---------- panel 1: p update ----------
+    pl.subplot(0, 1)
     grid_pu = grid_base.copy()
     grid_pu.point_data["p_update"] = np.asarray(State.p_update.x.array)
     # independent color limits for this field
@@ -211,16 +231,16 @@ def update_fields(Mesh, State, Supervisor, iteration=1, cycle=1, stack=False):
                 scalar_bar_args=sbar0, show_scalar_bar=True)
     pl.add_mesh(outline, color="black", line_width=linewidth)
     pl.view_xy(); pl.hide_axes(); pl.camera.zoom(zoom)
-    pl.add_text(f"update \niteration {iteration+1}\ncycle {cycle+1}", font_size=10, position="upper_left")
 
-    # ---------- panel 1: |Q|_update ----------
+    # ---------- panel 2: |Q|_update ----------
     # tensor vs scalar handling (match your earlier pattern)
+    pl.subplot(0, 2)
+    
     if State.c_type == "tensor":
         absQ_update_array = State.absQ_update.x.array[::4] + State.absQ_update.x.array[3::4]
     else:
         absQ_update_array = State.absQ_update.x.array
-
-    pl.subplot(0, 1)
+    
     grid_qu = grid_base.copy()
     grid_qu.point_data["absQ_update"] = np.asarray(absQ_update_array)
     clim_qu = (float(grid_qu.point_data["absQ_update"].min()), float(grid_qu.point_data["absQ_update"].max()))
@@ -231,47 +251,43 @@ def update_fields(Mesh, State, Supervisor, iteration=1, cycle=1, stack=False):
     pl.add_mesh(outline, color="black", line_width=linewidth)
     pl.view_xy(); pl.hide_axes(); pl.camera.zoom(zoom)
 
-    # ---------- panel 2: c field ----------
-    if stack:
-        pl.subplot(1, 0)
-    else:
-        pl.subplot(0, 2)
-
-    if State.c_type == "tensor":
-        c_array = State.c.x.array[::4] + State.c.x.array[3::4]
-    else:
-        c_array = State.c.x.array    # <- fix: use c, not absQ_update
+    # ---------- panel 3: BEASTAL Right ----------
+    pl.subplot(0, 3)
 
     y_r = Mesh.coords_right[:, 1]
     ch = pv.Chart2D()
-    ch.line(y_r, Supervisor.update.l_array, color="black", width=linewidth, label="BEASTAL left")
-    ch.line(y_r, Supervisor.update.r_array, color="black", width=linewidth, style="--", label="BEASTAL right")
-    ch.x_label = "y"; ch.y_label = ""
+    ch.line(Supervisor.update.r_array, y_r, color="black", width=linewidth, style="--", label="BEASTAL right")
+    ch.y_label = "y"
+    ch.x_label = ""
     ch.x_axis.tick_label_size = font; ch.x_axis.label_size = font
     ch.y_axis.tick_label_size = font; ch.y_axis.label_size = font
     ch.legend_visible = True
     ch.grid = False
     pl.add_chart(ch)
 
-    # ---------- panel 3: BEASTAL L/R (lines, no grid) ----------
-    if stack:
-        pl.subplot(1, 1)
-    else:
-        pl.subplot(0, 3)
-
+    # # ---------- panel 3: c field ----------
+    # if State.c_type == "tensor":
+    #     c_array = State.c.x.array[::4] + State.c.x.array[3::4]
+    # else:
+    #     c_array = State.c.x.array    # <- fix: use c, not absQ_update
     
-    grid_c = grid_base.copy()
-    grid_c.point_data["c"] = np.asarray(c_array)
-    clim_c = (float(grid_c.point_data["c"].min()), float(grid_c.point_data["c"].max()))
-    sbar2 = {**sbar_common, "title": "c"}
-    pl.add_mesh(grid_c, scalars="c", cmap="cividis",
-                clim=clim_c, show_edges=False, lighting=False,
-                scalar_bar_args=sbar2, show_scalar_bar=True)
-    pl.add_mesh(outline, color="black", line_width=linewidth)
-    pl.view_xy(); pl.hide_axes(); pl.camera.zoom(zoom)
+    # if stack:
+    #     pl.subplot(1, 1)
+    # else:
+    #     pl.subplot(0, 3)
+    
+    # grid_c = grid_base.copy()
+    # grid_c.point_data["c"] = np.asarray(c_array)
+    # clim_c = (float(grid_c.point_data["c"].min()), float(grid_c.point_data["c"].max()))
+    # sbar2 = {**sbar_common, "title": "c"}
+    # pl.add_mesh(grid_c, scalars="c", cmap="cividis",
+    #             clim=clim_c, show_edges=False, lighting=False,
+    #             scalar_bar_args=sbar2, show_scalar_bar=True)
+    # pl.add_mesh(outline, color="black", line_width=linewidth)
+    # pl.view_xy(); pl.hide_axes(); pl.camera.zoom(zoom)
     
     # show
-    pl.link_views()
+    # pl.link_views()
     pl.show()
 
 
@@ -369,7 +385,7 @@ def Q(State: "StateClass", Mesh: "MeshClass", update=False, iteration=1, cycle=1
 #     plt.tight_layout()
 #     plt.show()
 
-def c_tensor(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1, stack=True):
+def c(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1, stack=True):
     """
     Plot the 4 tensor components c00, c10, c01, c11 on the mesh using PyVista.
     Equivalent to the matplotlib tricontourf version, but interactive.
@@ -378,18 +394,19 @@ def c_tensor(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1, stack
     # Prepare PyVista grid
     grid = Mesh.pv_grid().copy()
 
-    # Extract tensor components
-    c_components = [State.c.x.array[i::4] for i in range(4)]
+    if State.c_type == "tensor":
+        c_components = [State.c.x.array[i::4] for i in range(4)]
+        titles = [r"c00", r"c10", r"c01", r"c11"]  # Titles for each component
+        shape = (2, 2) if stack else (1, 4)  # Choose layout
+    else:
+        c_components = [State.c.x.array]
+        titles = [r"c_{field}"]
+        shape = (1, 1)
 
     # Global min/max for consistent color normalization
     global_min = min(comp.min() for comp in c_components)
     global_max = max(comp.max() for comp in c_components)
 
-    # Titles for each component
-    titles = [r"c00", r"c10", r"c01", r"c11"]
-
-    # Choose layout
-    shape = (2, 2) if stack else (1, 4)
     pl = pv.Plotter(shape=shape, window_size=(500, 500), border=False)
 
     # vertical scalar bars (screen coords 0..1)
@@ -423,7 +440,6 @@ def c_tensor(State: "StateClass", Mesh: "MeshClass", iteration=1, cycle=1, stack
     # Link camera views so you can zoom/pan all at once
     pl.link_views()
     pl.show()
-
 
 
 def plot_mesh(Mesh):
