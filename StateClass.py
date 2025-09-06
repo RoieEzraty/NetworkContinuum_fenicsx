@@ -71,13 +71,15 @@ class StateClass:
                 # absQ_tensor_expr = as_tensor([[sqrt(self.Q_update[0] * self.Q_update[0]), sqrt(self.Q_update[0] * self.Q_update[1])],
                 #                               [sqrt(self.Q_update[1] * self.Q_update[0]), sqrt(self.Q_update[1] * self.Q_update[1])]])
                 # absQ_tensor_expr = outer(self.Q_update, self.Q_update)
-                d = 1.0  # example: double the off-diagonal weight
-                # ani = 3.76
+                xx = 1.0  # example: double the off-diagonal weight
+                yy = 1.0
+                # yy = 2.0
+                # ani = 3.5
                 ani = 1.0
                 # ani = 0.0
                 absQ_tensor_expr = as_tensor([
-                    [d * self.Q_update[0] * self.Q_update[0], -ani * self.Q_update[0] * self.Q_update[1]],
-                    [ani * self.Q_update[1] * self.Q_update[0], d * self.Q_update[1] * self.Q_update[1]]
+                    [xx * self.Q_update[0] * self.Q_update[0], -ani * self.Q_update[0] * self.Q_update[1]],
+                    [ani * self.Q_update[1] * self.Q_update[0], yy * self.Q_update[1] * self.Q_update[1]]
                 ])
                 self.absQ_update = funcs_proj_smooth.project_tensor_func(absQ_tensor_expr, Funcspace)
             else:
